@@ -69,8 +69,11 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh '''
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                    docker build \
+                        --provenance=false \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                        -t ${IMAGE_NAME}:latest \
+                        .
                     echo "Image built: ${IMAGE_NAME}:${IMAGE_TAG}"
                 '''
             }
@@ -95,7 +98,7 @@ pipeline {
                     echo "${DOCKERHUB_CREDS_PSW}" | docker login -u "${DOCKERHUB_CREDS_USR}" --password-stdin
                     docker push ${IMAGE_NAME}:${IMAGE_TAG}
                     docker push ${IMAGE_NAME}:latest
-                    echo "Pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
+                    echo "Successfully pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
                 '''
             }
         }
@@ -103,7 +106,7 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline passed! Image available at: ${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "Pipeline passed! Image: ${IMAGE_NAME}:${IMAGE_TAG}"
         }
         failure {
             echo 'Pipeline failed — check the logs above.'
