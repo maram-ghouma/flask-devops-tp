@@ -134,35 +134,38 @@ pipeline {
         }
 
         stage('Smoke Test') {
-            steps {
-                sh '''
-                    cp ${KUBECONFIG_FILE} ${WORKSPACE}/kubeconfig
-                    chmod 600 ${WORKSPACE}/kubeconfig
+    steps {
+        sh '''
+            cp ${KUBECONFIG_FILE} ${WORKSPACE}/kubeconfig
+            chmod 600 ${WORKSPACE}/kubeconfig
 
-                    echo "Waiting for pod to be ready..."
-                    kubectl wait --for=condition=ready pod \
-                        -l app=flask-app \
-                        -n flask-app \
-                        --timeout=120s
+            echo "Waiting for pod to be ready..."
+            kubectl wait --for=condition=ready pod \
+                -l app=flask-app \
+                -n flask-app \
+                --timeout=120s
 
-                    NODE_IP=$(kubectl get nodes \
-                        -o jsonpath="{.items[0].status.addresses[0].address}")
-                    echo "Node IP: ${NODE_IP}"
+            echo "Starting port-forward in background..."
+            kubectl port-forward svc/flask-app 18080:80 -n flask-app &
+            PF_PID=$!
+            sleep 5
 
-                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-                        http://${NODE_IP}:30080/health)
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                http://localhost:18080/health)
 
-                    echo "HTTP response code: ${HTTP_CODE}"
+            kill $PF_PID || true
 
-                    if [ "${HTTP_CODE}" = "200" ]; then
-                        echo "Smoke test PASSED — app is healthy"
-                    else
-                        echo "Smoke test FAILED — got HTTP ${HTTP_CODE}"
-                        exit 1
-                    fi
-                '''
-            }
-        }
+            echo "HTTP response code: ${HTTP_CODE}"
+
+            if [ "${HTTP_CODE}" = "200" ]; then
+                echo "Smoke test PASSED — app is healthy"
+            else
+                echo "Smoke test FAILED — got HTTP ${HTTP_CODE}"
+                exit 1
+            fi
+        '''
+    }
+}
     }
 
     post {
