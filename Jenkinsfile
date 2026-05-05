@@ -8,6 +8,7 @@ pipeline {
         KUBECONFIG_FILE = credentials('kubeconfig')
         IMAGE_NAME      = "${DOCKERHUB_CREDS_USR}/flask-devops-tp"
         IMAGE_TAG       = "${BUILD_NUMBER}"
+        KUBECONFIG      = "${WORKSPACE}/kubeconfig"
     }
 
     stages {
@@ -108,7 +109,8 @@ pipeline {
         stage('Terraform — Provision Infrastructure') {
             steps {
                 sh '''
-                    cp ${KUBECONFIG_FILE} /tmp/kubeconfig
+                    cp ${KUBECONFIG_FILE} ${WORKSPACE}/kubeconfig
+                    chmod 600 ${WORKSPACE}/kubeconfig
                     cd terraform/
                     terraform init -input=false
                     terraform apply -auto-approve -input=false
@@ -119,7 +121,8 @@ pipeline {
         stage('Ansible — Configure & Deploy') {
             steps {
                 sh '''
-                    cp ${KUBECONFIG_FILE} /tmp/kubeconfig
+                    cp ${KUBECONFIG_FILE} ${WORKSPACE}/kubeconfig
+                    chmod 600 ${WORKSPACE}/kubeconfig
 
                     sed "s|DOCKER_IMAGE_PLACEHOLDER|${IMAGE_NAME}:${IMAGE_TAG}|g" \
                         k8s/deployment.yaml > /tmp/deployment-final.yaml
@@ -133,8 +136,8 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
-                    cp ${KUBECONFIG_FILE} /tmp/kubeconfig
-                    export KUBECONFIG=/tmp/kubeconfig
+                    cp ${KUBECONFIG_FILE} ${WORKSPACE}/kubeconfig
+                    chmod 600 ${WORKSPACE}/kubeconfig
 
                     echo "Waiting for pod to be ready..."
                     kubectl wait --for=condition=ready pod \
